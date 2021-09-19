@@ -11,7 +11,7 @@ request.onsuccess = function(event) {
   db = event.target.result;
 
   if(navigator.onLine) {
-    // upload budget info
+    uploadBudget();
   }
 }; 
 
@@ -25,3 +25,37 @@ function saveRecord(record) {
   budgetObjectStore.add(record);
 }
 
+function uploadBudget() {
+  const transaction = db.transaction(["new_budget"], "readwrite");
+  const budgetObjectStore = transaction.objectStore("new_budget");
+  const getAll = budgetObjectStore.getAll();
+
+  getAll.onsuccess = function() {
+    if (getAll.result.length > 0) {
+      fetch("/api/transaction/bulk", {
+        method: "POST",
+        body: JSON.stringify(getAll.result),
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'Content-Type': 'application/json'
+        }
+      })
+        .then(response => response.json())
+        .then(serverResponse => {
+          if (serverResponse.message) {
+            throw new Error(serverResponse);
+          }
+          const transaction = db.transaction(["new_budget"], "readwrite");
+          const budgetObjectStore = transaction.objectStore("new_budget");
+          budgetObjectStore.clear();
+
+          alert("All saved budget additions have been submit!");
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    }
+  };
+};
+
+window.addEventListener("online", uploadBudget);
